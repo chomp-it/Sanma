@@ -1,11 +1,11 @@
-#!usr/bin/perl
+#!/usr/bin/perl
 
 use strict; use warnings;
 use feature 'say';
 use File::Copy;
 
-request = @ARGV;
-grep {$_ eq @ARGV[0]} ('scaffold', 'feast') or die
+my $request = @ARGV;
+grep {$_ eq $ARGV[0]} ('scaffold', 'feast') or die
 'Sanma could not understand the request ' @ARGV[0] . ' . If your goal is to scaffold a project, use sanma scaffold or sanma feast';
 
 my $directory = '.';
@@ -14,7 +14,7 @@ opendir(my $directoryHandle, $directory) or die 'Sanma failed to open the direct
 
 my @filesToSearch = ();
 while (my $filename = readdir($directoryHandle)) {
-    push(@filesToSearch), $filename if $filename =~ /$(.html)/;
+    push @filesToSearch, $filename if $filename =~ /\.html$/;
 }
 
 @filesToSearch or die 'The directory you gave Sanma is empty; it has no files in it. Directory: ' . $directory;
@@ -41,9 +41,9 @@ my @mediaHtmlTags = (
 # argue the line
 my $matchesInEitherList = {
     my $line = shift;
-    if (grep {$_ =~ $line} @textHtmlTags) {
+    if (grep {$_ =~ /\Q$_\E/} @textHtmlTags) {
         return 1;
-    } elsif (grep ($_ =~ $line) @mediaHtmlTags) {
+    } elsif (grep ($_ =~ /\Q$_\E/) @mediaHtmlTags) {
         return 0;
     }
 };
@@ -52,17 +52,18 @@ my $textElementsCount = 0;
 my $mediaElementsCount = 0;
 
 # actually, we don't use a list; we use an integer. The tags themselves don't change anything (unless we step up our parsing complexity).
-my $tossInTextList = {
+my $tossInTextList = sub {
     $textElementsCount++;
 };
 
-my $tossInMediaList = {
+my $tossInMediaList = sub {
     $mediaElementsCount++;
 };
 
 for my $file (@filesToSearch) {
-    while (my $line = <($open->($file))>) {
-        $matchesInEitherList->() ? $tossInTextList->() : $tossInMediaList->() : next;
+    my $fileHandle = $open->($file);
+    while (my $line = <$fileHandle>) {
+        $matchesInEitherList->($line) ? $tossInTextList->() : $tossInMediaList->();
     }
 }
 # We may need to close the filehandle, but we can't access the file handle because it's unnamed.
@@ -76,8 +77,10 @@ my $mediaPercentage = $mediaElementsCount / $total;
 
 # TODO: WRITE THE CSS FILES
 
-my $successMessage = {say 'Sanma successfully scaffolded ' . shift . ' into your directory. Happy coding!'}
+my $successMessage = sub {say 'Sanma successfully scaffolded ' . shift . ' into your directory. Happy coding!'};
+
 my $cssError = 'Sanma failed to move the CSS file into your directory';
+
 sub textBasedFile {
     copy('stylesheets/pure_text.css', $directory)or die $cssError; 
     $successMessage->('pure_text.css');
